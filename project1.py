@@ -11,8 +11,9 @@ from sklearn.preprocessing import StandardScaler
 import time
 
 
-def veri_yukle(veri_dosyasi, ayrac=','):
-    def degis(x):
+def veri_yukle(veri_dosyasi, ayrac=','):    ## reading data
+
+    def degis(x):   ## converting yes no values to 1 0
         if x.decode("utf-8") == "EVET":
             return 1
         else:
@@ -20,13 +21,14 @@ def veri_yukle(veri_dosyasi, ayrac=','):
 
     veri = np.genfromtxt(veri_dosyasi, delimiter=ayrac, dtype=float, skip_header=True, converters={-1: degis})
 
-    # boş değerleri doldurma
+    ## fill in the blank values
     imp = SimpleImputer(missing_values=np.nan, strategy="mean")
     imp.fit(veri)
     veri = imp.transform(veri)
 
     train_sayisi = ceil(len(veri) * 0.7)
-
+    
+    ## reducing the number of features
     # from sklearn.feature_selection import RFE
     # from sklearn.svm import SVR
     # estimator = SVR(kernel="linear")
@@ -34,25 +36,27 @@ def veri_yukle(veri_dosyasi, ayrac=','):
     # selector = selector.fit(X, Y)
     # print(X)
     # print(selector.support_)
-
+    
+    ## removing the most unnecessary features
     # veri = np.delete(veri, [8,12], axis=1)
+    
     X = veri[:, :-1]
     Y = veri[:, -1]
 
-    # değerleri aralığa sığdırma
-    # X = StandardScaler().fit_transform(X)
+    
+    # X = StandardScaler().fit_transform(X) ## fit values into a range
 
-    # embedding = MDS(n_components=1)
-    # X = embedding.fit_transform(X)
     xtrain = X[:train_sayisi, :]
     ytrain = Y[:train_sayisi]
     xtest = X[train_sayisi:, :]
     ytest = Y[train_sayisi:]
+    
     return X, Y, xtrain, ytrain, xtest, ytest
 
 
-def verigorsellestir(x, y):
-    # değişken sayısını indirgeme
+
+def verigorsellestir(x, y):      ## visualizing data
+    ## reducing the number of variables
     embedding = MDS(n_components=2)
     X_transformed = embedding.fit_transform(x)
 
@@ -68,10 +72,11 @@ def verigorsellestir(x, y):
 
 
 def lineerReg(X, y, tekrar=500, alfa=0.0001):
-
     veri_sayisi = len(X)
     bias = 0
     coefs = np.zeros(len(X[0]))
+    
+    ## Gradient Descent
     for i in range(tekrar):
         h = np.dot(X, coefs) + bias
         # print(1/veri_sayisi*sum([abs(val) for val in (y-h)]))
@@ -80,7 +85,7 @@ def lineerReg(X, y, tekrar=500, alfa=0.0001):
 
     return coefs, bias
 
-
+## to get linear regression estimation list
 def lineer_tahmin(X, coefs, bias):
     tahmini = []
     for i in range(len(X)):
@@ -91,20 +96,25 @@ def lineer_tahmin(X, coefs, bias):
 
 
 def lineer(xtrain, ytrain, xtest, ytest):
+    ## calculating time spent
     basla = time.time()
     coefs, bias = lineerReg(xtrain, ytrain)
     bitir = time.time()
     print("harcanan süre: ", bitir-basla)
-    print(coefs, bias)
+    
+    # print(coefs, bias)
     test_lineer_tahmini = lineer_tahmin(xtest, coefs, bias)
+    
+    ## get models score with r2-score for test data
     test_sonuc = r2_score(ytest, test_lineer_tahmini)
     print("test doğruluk :", test_sonuc)
-    print("lineer için confusion matrix (test)", confusion_matrix(ytest, test_lineer_tahmini))
+    print("lineer için confusion matrix (test)", confusion_matrix(ytest, test_lineer_tahmini)) ## print confusion matrix for test data
 
+    ## get models score with r2-score for train data
     egitim_lineer_tahmini = lineer_tahmin(xtrain, coefs, bias)
     egiitim_sonuc = r2_score(ytrain, egitim_lineer_tahmini)
     print("eğitim doğruluk :", egiitim_sonuc)
-    print("lineer için confusion matrix (eğitim)", confusion_matrix(ytrain, egitim_lineer_tahmini))
+    print("lineer için confusion matrix (eğitim)", confusion_matrix(ytrain, egitim_lineer_tahmini)) ## print confusion matrix for train data
 
 
 def sigmoid_fonksiyon(z):
@@ -116,6 +126,7 @@ def lojistikreg(X, y, tekrar=1000, alfa=0.2):
     veri_sayisi = len(X)
     bias = 0
     coefs = np.zeros(len(X[0]))
+    ## Gradient Descent
     for i in range(tekrar):
         h = sigmoid_fonksiyon(np.dot(X, coefs) + bias)
         # print(1/veri_sayisi*sum([abs(val) for val in (y-h)]))
@@ -124,6 +135,7 @@ def lojistikreg(X, y, tekrar=1000, alfa=0.2):
     return coefs, bias
 
 
+## to get logistic regression estimation list
 def lojistik_tahmin(X, t0, teta):
     tahmin_listesi = []
     test_sayisi = len(X)
@@ -139,57 +151,64 @@ def lojistik_tahmin(X, t0, teta):
 
 
 def lojistik(xtrain, ytrain, xtest, ytest):
+    ## calculating time spent
     basla = time.time()
     coefs, bias = lojistikreg(xtrain, ytrain)
     bitir = time.time()
     print("harcanan süre: ", bitir - basla)
-    print(coefs, bias)
+    # print(coefs, bias)
 
     test_tahmin = lojistik_tahmin(xtest, bias, coefs)
-    print("lojistik için confusion matrix (test)", confusion_matrix(ytest, test_tahmin))
-    print("eğitim doğruluk :", accuracy_score(ytest, test_tahmin))
+    print("lojistik için confusion matrix (test)", confusion_matrix(ytest, test_tahmin))    ## print confusion matrix for test data
+    print("eğitim doğruluk :", accuracy_score(ytest, test_tahmin))  ## accuracy score for test data
 
     egitim_tahmin = lojistik_tahmin(xtrain, bias, coefs)
-    print("lojistik için confusion matrix (eğitim)", confusion_matrix(ytrain, egitim_tahmin))
-    print("test doğruluk :", accuracy_score(ytrain, egitim_tahmin))
+    print("lojistik için confusion matrix (eğitim)", confusion_matrix(ytrain, egitim_tahmin))   ## print confusion matrix for train data
+    print("test doğruluk :", accuracy_score(ytrain, egitim_tahmin)) ## accuracy score for train data
 
 
 def svm(X, y, xtest, ytest):
+    ## calculating time spent
     basla = time.time()
     clf = SVC(C=2, kernel='rbf')
     clf.fit(X, y)
     bitir = time.time()
     print("harcanan süre: ", bitir - basla)
-    print("Test Skoru: ", clf.score(xtest, ytest))
-    print("Eğitim Skoru: ", clf.score(X, y))
+    
+    print("Test Skoru: ", clf.score(xtest, ytest))  ## accuracy score for test data
+    print("Eğitim Skoru: ", clf.score(X, y))    ## accuracy score for train data
 
     test_tahmini = clf.predict(xtest)
-    print("SVM için confusion matrix (test)", confusion_matrix(ytest, test_tahmini))
+    print("SVM için confusion matrix (test)", confusion_matrix(ytest, test_tahmini))    ## print confusion matrix for test data
 
     egitim_tahmini = clf.predict(X)
-    print("SVM için confusion matrix (eğitim)", confusion_matrix(y, egitim_tahmini))
+    print("SVM için confusion matrix (eğitim)", confusion_matrix(y, egitim_tahmini))    ## print confusion matrix for train data
 
 
 def ann(X, y, xtest, ytest):
+    ## calculating time spent
     basla = time.time()
     clf = MLPClassifier(hidden_layer_sizes=(100,), activation="tanh", solver="adam", random_state=1, max_iter=1000)
     clf.fit(X, y)
     bitir = time.time()
     print("harcanan süre: ", bitir - basla)
-    print("Test Skoru: ", clf.score(xtest, ytest))
-    print("Eğitim Skoru: ", clf.score(X, y))
-    print(confusion_matrix(ytest, clf.predict(xtest)))
+    
+    print("Test Skoru: ", clf.score(xtest, ytest))  ## accuracy score for test data
+    print("Eğitim Skoru: ", clf.score(X, y))    ## accuracy score for train data
+    
+    print(confusion_matrix(ytest, clf.predict(xtest)))   ## print confusion matrix for test data
 
-    egitim_tahmini = clf.predict(X)
-    print("yapay sinir ağı için confusion matrix (eğitim)", confusion_matrix(y, egitim_tahmini))
+    egitim_tahmini = clf.predict(X) 
+    print("yapay sinir ağı için confusion matrix (eğitim)", confusion_matrix(y, egitim_tahmini))    ## print confusion matrix for test data
     test_tahmini = clf.predict(xtest)
-    print("yapay sinir ağı için için confusion matrix (test)", confusion_matrix(ytest, test_tahmini))
+    print("yapay sinir ağı için için confusion matrix (test)", confusion_matrix(ytest, test_tahmini))   ## print confusion matrix for train data
 
-    print(clf.coefs_)
-    print(clf.intercepts_)
+    # print(clf.coefs_)
+    # print(clf.intercepts_)
 
 
 def knn(X, y, xtest, ytest):
+    ## getting three cluster
     kmeans = KMeans(n_clusters=3, random_state=1)
     kmeans.fit(X)
     hayir = 0
